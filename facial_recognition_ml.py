@@ -10,12 +10,12 @@ class FacialRecognitionSystem:
     def __init__(self, dataset_path="Images_visages"):
         self.dataset_path = dataset_path
         self.known_face_encodings = []
-        self.known_face_names = []
+        self.known_face_names = [] 
         self.face_classifier = SVC(kernel='linear', probability=True)
         self.le = LabelEncoder()
         self.db = FaceDatabase()
         
-    def load_dataset(self):
+    def load_dataset(self): 
         print("Chargement des encodages depuis la base de données...")
         self.known_face_encodings, self.known_face_names = self.db.get_all_faces()
         if self.known_face_encodings:
@@ -61,26 +61,33 @@ class FacialRecognitionSystem:
             # Ne traiter que si un visage est détecté
             if face_locations:
                 face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-
-                for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-                    # Ajuster les coordonnées
+                
+                # Process all faces at once for better distinction
+                predictions_list = self.face_classifier.predict_proba(face_encodings)
+                
+                for (top, right, bottom, left), face_encoding, predictions in zip(face_locations, face_encodings, predictions_list):
+                    # Scale coordinates
                     top *= 2
                     right *= 2
                     bottom *= 2
                     left *= 2
 
-                    # Prédiction uniquement si un visage est détecté
-                    predictions = self.face_classifier.predict_proba([face_encoding])[0]
+                    # Improved confidence threshold and comparison
                     best_match_index = np.argmax(predictions)
                     confidence = predictions[best_match_index]
                     
-                    if confidence > 0.6:
+                    if confidence > 0.7:  # Increased threshold for more strict matching
                         name = self.le.inverse_transform([best_match_index])[0]
-                        label = f"{name} ({confidence*100:.1f}%)"
+                        
+                        # Skip dummy class
+                        if name == "dummy_class":
+                            label = "Inconnu"
+                        else:
+                            label = f"{name} ({confidence*100:.1f}%)"
                     else:
                         label = "Inconnu"
 
-                    # Dessiner uniquement si un visage est détecté
+                    # Draw rectangle and label
                     cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
                     cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
                     cv2.putText(frame, label, (left + 6, bottom - 6), 

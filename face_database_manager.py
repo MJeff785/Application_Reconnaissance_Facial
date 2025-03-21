@@ -84,6 +84,19 @@ class FaceDatabase:
         return face_encodings, face_names
 
     def process_directory(self, directory_path):
+        # Get all existing paths in database
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT image_path FROM face_encodings")
+        db_paths = set(path[0] for path in cursor.fetchall())
+        conn.close()
+
+        # Check for missing files
+        for path in db_paths:
+            if not os.path.exists(path):
+                print(f"Missing file from database: {path}")
+
+        # Process directory as normal
         for person_name in os.listdir(directory_path):
             person_dir = os.path.join(directory_path, person_name)
             if os.path.isdir(person_dir):
